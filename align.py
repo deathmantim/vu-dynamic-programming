@@ -132,29 +132,53 @@ def do_global_alignment(sequences, matrix, penalty):
     #########################
     # INSERT YOUR CODE HERE #
     #########################
-    x = '-' + sequences[0].Sequence
-    y = '-' + sequences[1].Sequence
+    seq1 = '-' + sequences[0].Sequence
+    seq2 = '-' + sequences[1].Sequence
 
     scoring = [
-        [i for i in range(0, (len(y)) * -2, -2)]
+        [i for i in range(0, (len(seq2)) * -2, -2)]
     ]
-    for i in range(-2, (len(x)) * -2, -2):
+    for i in range(-2, (len(seq1)) * -2, -2):
         scoring.append([i])
 
     aa_start = ord('A')
-    for i in range(1, len(x)):
-        aa_x = x[i]
-        for j in range(1, len(y)):
-            aa_y = y[j]
+    for i in range(1, len(seq1)):
+        aa_x = seq1[i]
+        for j in range(1, len(seq2)):
+            aa_y = seq2[j]
             xgap = scoring[i][j-1] - penalty
             ygap = scoring[i-1][j] - penalty
             match = scoring[i-1][j-1] + matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
             scoring[i].append(max([xgap, ygap, match]))
 
+    scoring = add_sequences_to_scoring(scoring, seq1, seq2)
     return '', scoring
     #########################
     #   END YOUR CODE HERE  #
     #########################
+
+
+def add_sequences_to_scoring(scoring, seq1, seq2):
+    if seq1[0] != '-':
+        seq1 = '-' + seq1
+    if seq2[0] != '-':
+        seq2 = '-' + seq2
+
+    if len(seq1) == len(scoring):
+        new_scoring = [list(' ' + seq2)]
+
+        for i in range(len(seq1)):
+            new_scoring.append([seq1[i]])
+            new_scoring[-1].extend(scoring[i])
+
+    else:
+        new_scoring = [list(' ' + seq1)]
+
+        for i in range(len(seq2)):
+            new_scoring.append([seq2[i]])
+            new_scoring[-1].extend(scoring[i])
+
+    return new_scoring
 
 
 def do_local_alignment(sequences, matrix, penalty):
