@@ -151,11 +151,61 @@ def do_global_alignment(sequences, matrix, penalty):
             match = scoring[i-1][j-1] + matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
             scoring[i].append(max([xgap, ygap, match]))
 
+    alignment = global_traceback(scoring, seq1, seq2, penalty, matrix)
+
     scoring = add_sequences_to_scoring(scoring, seq1, seq2)
-    return '', scoring
+    return alignment, scoring
     #########################
     #   END YOUR CODE HERE  #
     #########################
+
+
+def global_traceback(scoring, seq1, seq2, penalty, matrix):
+    alignment = ['', '', '']
+    aa_start = ord('A')
+    i = -1
+    j = -1
+    while True:
+        origin = {(i, j-1): 0, (i-1, j): 0, (i-1, j-1): 0}  # [xgap, ygap, match]
+        aa_x = seq1[i]
+        aa_y = seq2[j]
+        score = scoring[i][j]
+
+        if score == scoring[i][j - 1] - penalty:  # xgap
+            origin[(i, j-1)] = 1
+        if score == scoring[i - 1][j] - penalty:  # ygap
+            origin[(i-1, j)] = 1
+        if score == scoring[i - 1][j - 1] + matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]:  # match
+            origin[(i-1, j-1)] = 1
+
+        if sum(origin.values()) == 1:
+            origin_i, origin_j = [k for k, v in origin.items() if v == 1][0]
+            if origin_j == j - 1:
+                if origin_i == i:
+                    alignment[0] += '-'
+                    alignment[1] += ' '
+                    alignment[2] += seq2[j]
+                else:
+                    alignment[0] += seq1[i]
+                    alignment[2] += seq2[j]
+                    if seq1[i] == seq2[j]:
+                        alignment[1] += '|'
+                    else:
+                        alignment[1] += ' '
+            else:
+                alignment[0] += seq1[i]
+                alignment[1] += ' '
+                alignment[2] += '-'
+
+        i = origin_i
+        j = origin_j
+        if i == -len(seq1) and j == -len(seq2):
+            break
+
+    alignment = [[x[::-1]] for x in alignment]
+    alignment.append(['score = %s' % (scoring[-1][-1],)])
+
+    return alignment
 
 
 def add_sequences_to_scoring(scoring, seq1, seq2):
