@@ -132,7 +132,26 @@ def do_global_alignment(sequences, matrix, penalty):
     #########################
     # INSERT YOUR CODE HERE #
     #########################
+    x = '-' + sequences[0].Sequence
+    y = '-' + sequences[1].Sequence
 
+    scoring = [
+        [i for i in range(0, (len(y)) * -2, -2)]
+    ]
+    for i in range(-2, (len(x)) * -2, -2):
+        scoring.append([i])
+
+    aa_start = ord('A')
+    for i in range(1, len(x)):
+        aa_x = x[i]
+        for j in range(1, len(y)):
+            aa_y = y[j]
+            xgap = scoring[i][j-1] - penalty
+            ygap = scoring[i-1][j] - penalty
+            match = scoring[i-1][j-1] + matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
+            scoring[i].append(max([xgap, ygap, match]))
+
+    return '', scoring
     #########################
     #   END YOUR CODE HERE  #
     #########################
