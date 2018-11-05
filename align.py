@@ -129,9 +129,6 @@ def readSequences(lines):
 
 def do_global_alignment(sequences, matrix, penalty):
     """Do pairwise global alignment using DP."""
-    #########################
-    # INSERT YOUR CODE HERE #
-    #########################
     seq1 = '-' + sequences[0].Sequence
     seq2 = '-' + sequences[1].Sequence
 
@@ -148,16 +145,14 @@ def do_global_alignment(sequences, matrix, penalty):
             aa_y = seq2[j]
             xgap = scoring[i][j-1] - penalty
             ygap = scoring[i-1][j] - penalty
-            match = scoring[i-1][j-1] + matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
+            match = scoring[i-1][j-1] + \
+                    matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
             scoring[i].append(max([xgap, ygap, match]))
 
     alignment = global_traceback(scoring, seq1, seq2, penalty, matrix)
 
     scoring = add_sequences_to_scoring(scoring, seq1, seq2)
     return alignment, scoring
-    #########################
-    #   END YOUR CODE HERE  #
-    #########################
 
 
 def global_traceback(scoring, seq1, seq2, penalty, matrix):
@@ -186,7 +181,8 @@ def global_traceback(scoring, seq1, seq2, penalty, matrix):
             alignment[2] += seq2[j]
             j -= 1
             continue
-        if score == scoring[i - 1][j - 1] + matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]:  # match
+        if score == scoring[i - 1][j - 1] + \
+                matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]:  # match
             alignment[0] += seq1[i]
             alignment[2] += seq2[j]
             if seq1[i] == seq2[j]:
@@ -203,6 +199,14 @@ def global_traceback(scoring, seq1, seq2, penalty, matrix):
 
 
 def add_sequences_to_scoring(scoring, seq1, seq2):
+    """
+    Add sequence letters to their respective locations in the
+    scoring matrix.
+    :param scoring: scoring matrix
+    :param seq1: sequence 1 string
+    :param seq2: sequence 2 string
+    :return: scoring matrix with sequences
+    """
     if seq1[0] != '-':
         seq1 = '-' + seq1
     if seq2[0] != '-':
