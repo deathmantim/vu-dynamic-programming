@@ -133,9 +133,9 @@ def do_global_alignment(sequences, matrix, penalty):
     seq2 = '-' + sequences[1].Sequence
 
     scoring = [
-        [i for i in range(0, (len(seq2)) * -2, -2)]
+        [i for i in range(0, (len(seq2)) * -penalty, -penalty)]
     ]
-    for i in range(-2, (len(seq1)) * -2, -2):
+    for i in range(-penalty, (len(seq1)) * -penalty, -penalty):
         scoring.append([i])
 
     aa_start = ord('A')
@@ -155,7 +155,8 @@ def do_global_alignment(sequences, matrix, penalty):
     return alignment, scoring
 
 
-def traceback(scoring, seq1, seq2, penalty, matrix, start_i=-1, start_j=-1):
+def traceback(scoring, seq1, seq2, penalty, matrix, start_i=-1, start_j=-1,
+              local=False):
     i = len(seq1) + start_i if start_i < 0 else start_i  # set start i
     j = len(seq2) + start_j if start_j < 0 else start_j  # set start j
 
@@ -166,6 +167,9 @@ def traceback(scoring, seq1, seq2, penalty, matrix, start_i=-1, start_j=-1):
     while True:
         if i == 0 and j == 0:
             break
+        if local:
+            if scoring[i][j] == 0:
+                break
         aa_x = seq1[i]
         aa_y = seq2[j]
         score = scoring[i][j]
@@ -213,43 +217,105 @@ def add_sequences_to_scoring(scoring, seq1, seq2):
     if seq2[0] != '-':
         seq2 = '-' + seq2
 
-    if len(seq1) == len(scoring):
-        new_scoring = [list(' ' + seq2)]
+    new_scoring = [list(' ' + seq2)]
 
-        for i in range(len(seq1)):
-            new_scoring.append([seq1[i]])
-            new_scoring[-1].extend(scoring[i])
-
-    else:
-        new_scoring = [list(' ' + seq1)]
-
-        for i in range(len(seq2)):
-            new_scoring.append([seq2[i]])
-            new_scoring[-1].extend(scoring[i])
+    for i in range(len(seq1)):
+        new_scoring.append([seq1[i]])
+        new_scoring[-1].extend(scoring[i])
 
     return new_scoring
 
 
 def do_local_alignment(sequences, matrix, penalty):
     """Do pairwise local alignment using DP."""
-    #########################
-    # INSERT YOUR CODE HERE #
-    #########################
+    seq1 = '-' + sequences[0].Sequence
+    seq2 = '-' + sequences[1].Sequence
 
-    #########################
-    #   END YOUR CODE HERE  #
-    #########################
+    scoring = [
+        [0 for i in range(len(seq2))]
+    ]
+    for i in range(len(seq1)):
+        scoring.append([0])
+
+    aa_start = ord('A')
+    for i in range(1, len(seq1)):
+        aa_x = seq1[i]
+        for j in range(1, len(seq2)):
+            aa_y = seq2[j]
+            xgap = scoring[i][j-1] - penalty
+            ygap = scoring[i-1][j] - penalty
+            match = scoring[i-1][j-1] + \
+                    matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
+            scoring[i].append(max([xgap, ygap, match, 0]))
+
+    # find the max score (only the last max score)
+    max_i, max_j, max_score = 0, 0, -float('inf')
+    for i in range(len(scoring)):
+        for j in range(len(scoring[i])):
+            if scoring[i][j] > max_score:
+                max_i, max_j, max_score = i, j, scoring[i][j]
+
+    alignment = traceback(scoring, seq1, seq2, penalty, matrix, max_i, max_j, True)
+    scoring = add_sequences_to_scoring(scoring, seq1, seq2)
+
+    return alignment, scoring
 
 
 def do_semiglobal_alignment(sequences, matrix, penalty):
     """Do pairwise semi-global alignment using DP."""
-    #########################
-    # INSERT YOUR CODE HERE #
-    #########################
+    seq1 = '-' + sequences[0].Sequence
+    seq2 = '-' + sequences[1].Sequence
 
-    #########################
-    #   END YOUR CODE HERE  #
-    #########################
+    scoring = [
+        [0 for i in range(len(seq2))]
+    ]
+    for i in range(len(seq1)):
+        scoring.append([0])
+
+    aa_start = ord('A')
+    for i in range(1, len(seq1)):
+        aa_x = seq1[i]
+        for j in range(1, len(seq2)):
+            aa_y = seq2[j]
+            xgap = scoring[i][j-1] - penalty
+            ygap = scoring[i-1][j] - penalty
+            match = scoring[i-1][j-1] + \
+                    matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
+            scoring[i].append(max([xgap, ygap, match]))
+
+    # find the max score (only the last max score)
+    max_i, max_j, max_score = 0, 0, -float('inf')
+
+    for j in range(len(scoring[-1])):  # find max low road
+        if scoring[-1][j] >= max_score:
+            max_i, max_j, max_score = -1, j, scoring[-1][j]
+
+    for i in range(len(scoring)):  # find max high road (priority)
+        if scoring[i][-1] >= max_score:
+            max_i, max_j, max_score = i, -1, scoring[i][-1]
+
+    alignment = traceback(scoring, seq1, seq2, penalty, matrix, max_i, max_j,
+                          True)
+
+    if max_i == -1 and max_j != len(scoring[-1]):
+        end_scoring = [x[max_j:-1] for x in scoring[-1]]
+        end_seq1 = seq1[-1]
+        end_seq2 = seq2[max_j:]
+        end_gaps = traceback(end_scoring, end_seq1, end_seq2, penalty, matrix)
+        for i in range(len(end_gaps) - 1):
+            alignment[i][0] += end_gaps[i][0]
+
+    if max_j == -1 and max_i != len(scoring):
+        end_scoring = [[x[-1]] for x in scoring[max_i:-1]]
+        end_seq1 = seq1[max_i:]
+        end_seq2 = seq2[-1]
+        end_gaps = traceback(end_scoring, end_seq1, end_seq2, penalty, matrix)
+        for i in range(len(end_gaps) - 1):
+            alignment[i][0] += end_gaps[i][0]
+
+    scoring = add_sequences_to_scoring(scoring, seq1, seq2)
+
+    return alignment, scoring
 
 
 def print_matrix_to_file(matrix, fileName):
