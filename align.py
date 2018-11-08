@@ -132,12 +132,10 @@ def do_global_alignment(sequences, matrix, penalty):
     seq1 = '-' + sequences[0].Sequence
     seq2 = '-' + sequences[1].Sequence
 
-    scoring = [
-        [i for i in range(0, (len(seq2)) * -penalty, -penalty)]
-    ]
-    for i in range(-penalty, (len(seq1)) * -penalty, -penalty):
-        scoring.append([i])
+    # scoring matrix initializer
+    scoring = global_setup(len(seq1), len(seq2), penalty)
 
+    # fill scoring matrix
     aa_start = ord('A')
     for i in range(1, len(seq1)):
         aa_x = seq1[i]
@@ -146,98 +144,17 @@ def do_global_alignment(sequences, matrix, penalty):
             xgap = scoring[i][j-1] - penalty
             ygap = scoring[i-1][j] - penalty
             match = scoring[i-1][j-1] + \
-                    matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
+                matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
+
+            # store the max value of them all
             scoring[i].append(max([xgap, ygap, match]))
 
+    # Perform traceback
     alignment = traceback(scoring, seq1, seq2, penalty, matrix)
+    # Add the sequences to the scoring matrix for visualizing
     scoring = add_sequences_to_scoring(scoring, seq1, seq2)
 
     return alignment, scoring
-
-
-def traceback(scoring, seq1, seq2, penalty, matrix, start_i=-1, start_j=-1,
-              local=False, semi=False):
-    i = len(seq1) + start_i if start_i < 0 else start_i  # set start i
-    j = len(seq2) + start_j if start_j < 0 else start_j  # set start j
-
-    alignment = ['', '', '']
-    alignmentscore = scoring[i][j]
-    aa_start = ord('A')
-
-    while True:
-        if i == 0 and j == 0:
-            break
-        if local:
-            if scoring[i][j] == 0:
-                break
-        aa_x = seq1[i]
-        aa_y = seq2[j]
-        score = scoring[i][j]
-
-        if semi:
-            if j == 0:
-                alignment[0] += seq1[i]
-                alignment[1] += ' '
-                alignment[2] += '-'
-                i -= 1
-                continue
-            if i == 0:
-                alignment[0] += '-'
-                alignment[1] += ' '
-                alignment[2] += seq2[j]
-                j -= 1
-                continue
-
-        if score == scoring[i - 1][j] - penalty:  # high road
-            alignment[0] += seq1[i]
-            alignment[1] += ' '
-            alignment[2] += '-'
-            i -= 1
-            continue
-        if score == scoring[i][j - 1] - penalty:  # low road
-            alignment[0] += '-'
-            alignment[1] += ' '
-            alignment[2] += seq2[j]
-            j -= 1
-            continue
-        if score == scoring[i - 1][j - 1] + \
-                matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]:  # match
-            alignment[0] += seq1[i]
-            alignment[2] += seq2[j]
-            if seq1[i] == seq2[j]:
-                alignment[1] += '|'
-            else:
-                alignment[1] += ' '
-            i, j = i-1, j-1
-            continue
-
-    alignment = [[x[::-1]] for x in alignment]
-    alignment.append(['score = %s' % alignmentscore])
-
-    return alignment
-
-
-def add_sequences_to_scoring(scoring, seq1, seq2):
-    """
-    Add sequence letters to their respective locations in the
-    scoring matrix.
-    :param scoring: scoring matrix
-    :param seq1: sequence 1 string
-    :param seq2: sequence 2 string
-    :return: scoring matrix with sequences
-    """
-    if seq1[0] != '-':
-        seq1 = '-' + seq1
-    if seq2[0] != '-':
-        seq2 = '-' + seq2
-
-    new_scoring = [list(' ' + seq2)]
-
-    for i in range(len(seq1)):
-        new_scoring.append([seq1[i]])
-        new_scoring[-1].extend(scoring[i])
-
-    return new_scoring
 
 
 def do_local_alignment(sequences, matrix, penalty):
@@ -245,12 +162,10 @@ def do_local_alignment(sequences, matrix, penalty):
     seq1 = '-' + sequences[0].Sequence
     seq2 = '-' + sequences[1].Sequence
 
-    scoring = [
-        [0 for i in range(len(seq2))]
-    ]
-    for i in range(len(seq1) - 1):
-        scoring.append([0])
+    # scoring matrix initializer
+    scoring = local_setup(len(seq1), len(seq2))
 
+    # fill scoring matrix
     aa_start = ord('A')
     for i in range(1, len(seq1)):
         aa_x = seq1[i]
@@ -260,6 +175,8 @@ def do_local_alignment(sequences, matrix, penalty):
             ygap = scoring[i-1][j] - penalty
             match = scoring[i-1][j-1] + \
                     matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
+
+            # store the max score (including 0)
             scoring[i].append(max([xgap, ygap, match, 0]))
 
     # find the max score (only the last max score)
@@ -269,7 +186,11 @@ def do_local_alignment(sequences, matrix, penalty):
             if scoring[i][j] > max_score:
                 max_i, max_j, max_score = i, j, scoring[i][j]
 
-    alignment = traceback(scoring, seq1, seq2, penalty, matrix, max_i, max_j, True)
+    # perform traceback
+    alignment = traceback(
+        scoring, seq1, seq2, penalty, matrix, max_i, max_j, local=True
+    )
+    # Add the sequences to the scoring matrix for visualizing
     scoring = add_sequences_to_scoring(scoring, seq1, seq2)
 
     return alignment, scoring
@@ -280,12 +201,10 @@ def do_semiglobal_alignment(sequences, matrix, penalty):
     seq1 = '-' + sequences[0].Sequence
     seq2 = '-' + sequences[1].Sequence
 
-    scoring = [
-        [0 for i in range(len(seq2))]
-    ]
-    for i in range(len(seq1) - 1):
-        scoring.append([0])
+    # scoring matrix initializer
+    scoring = local_setup(len(seq1), len(seq2))
 
+    # fill scoring matrix
     aa_start = ord('A')
     for i in range(1, len(seq1)):
         aa_x = seq1[i]
@@ -295,9 +214,9 @@ def do_semiglobal_alignment(sequences, matrix, penalty):
             ygap = scoring[i-1][j] - penalty
             match = scoring[i-1][j-1] + \
                     matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
-            scoring[i].append(max([xgap, ygap, match]))
 
-    print_matrix_on_screen(add_sequences_to_scoring(scoring, seq1, seq2))
+            # store the max score
+            scoring[i].append(max([xgap, ygap, match]))
 
     # find the max score (only the last max score)
     max_i, max_j, max_score = 0, 0, -float('inf')
@@ -309,8 +228,10 @@ def do_semiglobal_alignment(sequences, matrix, penalty):
         if scoring[i][-1] >= max_score:
             max_i, max_j, max_score = i, -1, scoring[i][-1]
 
-    alignment = traceback(scoring, seq1, seq2, penalty, matrix, max_i, max_j,
-                          semi=True)
+    # perform traceback
+    alignment = traceback(
+        scoring, seq1, seq2, penalty, matrix, max_i, max_j, semi=True
+    )
 
     # add the endgaps for seq1
     if max_i == -1 and max_j != len(scoring[-1]):
@@ -326,9 +247,160 @@ def do_semiglobal_alignment(sequences, matrix, penalty):
             alignment[1][0] += ' '
             alignment[2][0] += '-'
 
+    # Add the sequences to the scoring matrix for visualizing
     scoring = add_sequences_to_scoring(scoring, seq1, seq2)
 
     return alignment, scoring
+
+
+def local_setup(seq1_length, seq2_length):
+    """
+    Make a start scoring matrix for local alignment
+    :param seq1_length: integer
+    :param seq2_length: integer
+    :return: matrix
+    """
+    scoring = [
+        [0 for i in range(seq2_length)]
+    ]
+    for i in range(seq1_length - 1):
+        scoring.append([0])
+
+    return scoring
+
+
+def global_setup(seq1_length, seq2_length, penalty):
+    """
+    Make starting matrix for global alignment
+    :param seq1_length: integer
+    :param seq2_length: integer
+    :param penalty: integer
+    :return: matrix
+    """
+    scoring = [
+        [i for i in range(0, seq2_length * -penalty, -penalty)]
+    ]
+    for i in range(-penalty, seq1_length * -penalty, -penalty):
+        scoring.append([i])
+
+    return scoring
+
+
+def traceback(scoring, seq1, seq2, penalty, matrix, start_i=-1, start_j=-1,
+              local=False, semi=False):
+    """
+    Perform traceback on the matrix to get alignment.
+    :param scoring: Filled scoring matrix (list of lists with integers)
+    :param seq1: string
+    :param seq2: string
+    :param penalty: integer
+    :param matrix: pam250, indentity or blosum62 matrix
+    :param start_i: integer
+    :param start_j: integer
+    :param local: boolean
+    :param semi: boolean
+    :return: alignment list with positions:
+        0: string with sequence 1
+        1: string with match markers
+        2: string with sequence 2
+        3: string with score
+    """
+    # change -positions in actual positions
+    i = len(seq1) + start_i if start_i < 0 else start_i  # set start i
+    j = len(seq2) + start_j if start_j < 0 else start_j  # set start j
+
+    alignment = ['', '', '']
+    alignmentscore = scoring[i][j]
+    aa_start = ord('A')
+
+    while True:
+        # keep going until you hit the start
+        if i == 0 and j == 0:
+            break
+        # keep going untill you hit a 0
+        if local:
+            if scoring[i][j] == 0:
+                break
+        aa_x = seq1[i]
+        aa_y = seq2[j]
+        score = scoring[i][j]
+
+        # semiglobal has special case for starting gaps
+        if semi:
+            if j == 0:
+                alignment[0] += seq1[i]
+                alignment[1] += ' '
+                alignment[2] += '-'
+                i -= 1
+                continue
+            if i == 0:
+                alignment[0] += '-'
+                alignment[1] += ' '
+                alignment[2] += seq2[j]
+                j -= 1
+                continue
+
+        # introduce gap in sequence 2
+        if score == scoring[i - 1][j] - penalty:  # high road
+            alignment[0] += seq1[i]
+            alignment[1] += ' '
+            alignment[2] += '-'
+            i -= 1
+            continue
+
+        # introduce gap in sequence 1
+        if score == scoring[i][j - 1] - penalty:  # low road
+            alignment[0] += '-'
+            alignment[1] += ' '
+            alignment[2] += seq2[j]
+            j -= 1
+            continue
+
+        # matching position is last choice
+        if score == scoring[i - 1][j - 1] + \
+                matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]:  # match
+            alignment[0] += seq1[i]
+            alignment[2] += seq2[j]
+            if seq1[i] == seq2[j]:
+                alignment[1] += '|'  # matching
+            else:
+                alignment[1] += ' '  # not matching
+            i, j = i-1, j-1
+            continue
+
+    # reverse alignment sequences because they were constructed in reverse
+    alignment = [[x[::-1]] for x in alignment]
+
+    # add score to the list
+    alignment.append(['score = %s' % alignmentscore])
+
+    return alignment
+
+
+def add_sequences_to_scoring(scoring, seq1, seq2):
+    """
+    Add sequence letters to their respective locations in the
+    scoring matrix.
+    :param scoring: scoring matrix
+    :param seq1: sequence 1 string
+    :param seq2: sequence 2 string
+    :return: scoring matrix with sequences
+    """
+    # add starting - if not present
+    if seq1[0] != '-':
+        seq1 = '-' + seq1
+    if seq2[0] != '-':
+        seq2 = '-' + seq2
+
+    # sequence 2 needs to be spaced
+    new_scoring = [list(' ' + seq2)]
+
+    # add sequence 1 positions per row
+    for i in range(len(seq1)):
+        new_scoring.append([seq1[i]])
+        new_scoring[-1].extend(scoring[i])
+
+    return new_scoring
 
 
 def print_matrix_to_file(matrix, fileName):
