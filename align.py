@@ -305,7 +305,7 @@ def traceback(scoring, seq1, seq2, penalty, matrix, start_i=-1, start_j=-1,
         2: string with sequence 2
         3: string with score
     """
-    # change -positions in actual positions
+    # change minus positions to actual positions
     i = len(seq1) + start_i if start_i < 0 else start_i  # set start i
     j = len(seq2) + start_j if start_j < 0 else start_j  # set start j
 
