@@ -156,7 +156,7 @@ def do_global_alignment(sequences, matrix, penalty):
 
 
 def traceback(scoring, seq1, seq2, penalty, matrix, start_i=-1, start_j=-1,
-              local=False):
+              local=False, semi=False):
     i = len(seq1) + start_i if start_i < 0 else start_i  # set start i
     j = len(seq2) + start_j if start_j < 0 else start_j  # set start j
 
@@ -173,6 +173,20 @@ def traceback(scoring, seq1, seq2, penalty, matrix, start_i=-1, start_j=-1,
         aa_x = seq1[i]
         aa_y = seq2[j]
         score = scoring[i][j]
+
+        if semi:
+            if j == 0:
+                alignment[0] += seq1[i]
+                alignment[1] += ' '
+                alignment[2] += '-'
+                i -= 1
+                continue
+            if i == 0:
+                alignment[0] += '-'
+                alignment[1] += ' '
+                alignment[2] += seq2[j]
+                j -= 1
+                continue
 
         if score == scoring[i - 1][j] - penalty:  # high road
             alignment[0] += seq1[i]
@@ -234,7 +248,7 @@ def do_local_alignment(sequences, matrix, penalty):
     scoring = [
         [0 for i in range(len(seq2))]
     ]
-    for i in range(len(seq1)):
+    for i in range(len(seq1) - 1):
         scoring.append([0])
 
     aa_start = ord('A')
@@ -269,7 +283,7 @@ def do_semiglobal_alignment(sequences, matrix, penalty):
     scoring = [
         [0 for i in range(len(seq2))]
     ]
-    for i in range(len(seq1)):
+    for i in range(len(seq1) - 1):
         scoring.append([0])
 
     aa_start = ord('A')
@@ -283,9 +297,10 @@ def do_semiglobal_alignment(sequences, matrix, penalty):
                     matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
             scoring[i].append(max([xgap, ygap, match]))
 
+    print_matrix_on_screen(add_sequences_to_scoring(scoring, seq1, seq2))
+
     # find the max score (only the last max score)
     max_i, max_j, max_score = 0, 0, -float('inf')
-
     for j in range(len(scoring[-1])):  # find max low road
         if scoring[-1][j] >= max_score:
             max_i, max_j, max_score = -1, j, scoring[-1][j]
@@ -295,23 +310,21 @@ def do_semiglobal_alignment(sequences, matrix, penalty):
             max_i, max_j, max_score = i, -1, scoring[i][-1]
 
     alignment = traceback(scoring, seq1, seq2, penalty, matrix, max_i, max_j,
-                          True)
+                          semi=True)
 
+    # add the endgaps for seq1
     if max_i == -1 and max_j != len(scoring[-1]):
-        end_scoring = [x[max_j:-1] for x in scoring[-1]]
-        end_seq1 = seq1[-1]
-        end_seq2 = seq2[max_j:]
-        end_gaps = traceback(end_scoring, end_seq1, end_seq2, penalty, matrix)
-        for i in range(len(end_gaps) - 1):
-            alignment[i][0] += end_gaps[i][0]
+        for j in range(max_j + 1, len(scoring[-1])):
+            alignment[0][0] += '-'
+            alignment[1][0] += ' '
+            alignment[2][0] += seq2[j]
 
+    # add the endgaps for seq2
     if max_j == -1 and max_i != len(scoring):
-        end_scoring = [[x[-1]] for x in scoring[max_i:-1]]
-        end_seq1 = seq1[max_i:]
-        end_seq2 = seq2[-1]
-        end_gaps = traceback(end_scoring, end_seq1, end_seq2, penalty, matrix)
-        for i in range(len(end_gaps) - 1):
-            alignment[i][0] += end_gaps[i][0]
+        for i in range(max_i + 1, len(scoring)):
+            alignment[0][0] += seq1[i]
+            alignment[1][0] += ' '
+            alignment[2][0] += '-'
 
     scoring = add_sequences_to_scoring(scoring, seq1, seq2)
 
