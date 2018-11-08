@@ -174,7 +174,7 @@ def do_local_alignment(sequences, matrix, penalty):
             xgap = scoring[i][j-1] - penalty
             ygap = scoring[i-1][j] - penalty
             match = scoring[i-1][j-1] + \
-                    matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
+                matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
 
             # store the max score (including 0)
             scoring[i].append(max([xgap, ygap, match, 0]))
@@ -213,7 +213,7 @@ def do_semiglobal_alignment(sequences, matrix, penalty):
             xgap = scoring[i][j-1] - penalty
             ygap = scoring[i-1][j] - penalty
             match = scoring[i-1][j-1] + \
-                    matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
+                matrix[ord(aa_x) - aa_start][ord(aa_y) - aa_start]
 
             # store the max score
             scoring[i].append(max([xgap, ygap, match]))
